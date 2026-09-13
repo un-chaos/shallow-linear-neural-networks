@@ -102,6 +102,7 @@ experiments/N32_P64_ep2000_te10/
 输出的曲线图里，红线是 test loss，蓝线是 train loss，灰色虚线是噪声下界 `σ²`。
 
 > 如果同时运行多组实验，可以传 `--run-name` 指定目录名，避免 tag 冲突。
+> 注意 `experiments/` 在 `.gitignore` 里：结果不入库，仓库只保存代码，随时可用命令重新生成。
 
 ---
 
@@ -118,24 +119,58 @@ experiments/N32_P64_ep2000_te10/
 | `io_utils.py` | 写 `loss.csv` 与 `metadata.json` |
 | `plot.py` | 画 loss 曲线与诊断图 |
 | `main.py` | 主程序：解析参数 → 建 teacher/数据/student → 训练 → 存文件 → 打印汇总 |
+| `sweep.py` | 批量扫 `N`/`P`/`epoch`：每个格点跑一次完整实验，另出汇总表与叠加对比图 |
 | `smoke_test.py` | 自检：数值一致性、CSV 结构、loss 下降性 |
 
 参数校验在 `ExperimentConfig.__post_init__` 里集中完成，非法输入（如 `P<=0`、`lr<=0`）会在开始计算前就报错。
 
 ---
 
-## 7. 自检
+## 7. 批量扫参数
+
+```bash
+python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
+```
+
+对 `(N, P, epoch)` 的笛卡尔积逐点跑实验，每个格点仍然写自己的 `experiments/<tag>/`，
+另外在 `experiments/sweep_<...>/` 下生成：
+
+- `sweep_summary.csv`：每个格点一行，含 `final_train_loss` / `final_test_loss` / `best_test_loss` / `final_weight_distance` 等；
+- `sweep_test_loss.png`：所有格点的 test loss 曲线叠加在同一张图。
+
+典型输出（`--epoch 1000 --test-every 100`，`σ=0.01`）：
+
+| N | P | final train | final test |
+| --- | --- | --- | --- |
+| 8 | 32 | 7.9e-05 | 9.6e-05 |
+| 16 | 8 | 5.4e-35 | 3.6e-01 |
+| 16 | 32 | 3.8e-05 | 3.1e-04 |
+
+`P < N` 时（如 `N=16, P=8`）训练集被完全插值到机器精度，但 test loss 高出噪声地板三个数量级——
+这就是过参数化下的过拟合；`P >= N` 时 test loss 落到噪声地板 `σ²` 附近。
+
+---
+
+## 8. 自检
 
 ```bash
 python smoke_test.py
 ```
 
-检查项：训练集形状、CSV 行列结构、train loss 相对初始值下降、实测 test loss 与解析值 `||w-\bar w||^2+\sigma^2` 的相对误差在有限样本波动范围内。
+9 项检查，包括：训练集形状与随机流独立性、测试调度是否恰好落在 `test_every` 与最后一个 epoch、
+**训练损失轨迹与闭式 GD 递推 `w <- (I - 2ηXᵀX/P)w + 2ηXᵀy/P` 逐点吻合**、
+`P<N` 时是否收敛到最小范数插值解、训练损失是否落到 OLS 噪声地板 `σ²(P-N)/P`、
+以及解析风险 `||w-\bar w||²+σ²` 与 20 万样本蒙特卡洛估计是否一致。
 
 ---
 
-## 8. 数值提示
+## 9. 数值提示
 
 - student 与数据用**互相独立**的随机流（student 用 `seed+10000`），改初始化不会打乱数据集。
 - 默认 `lr=0.1`，对 `E[xx^T]=I` 且 `P>=N` 的情形稳定；若 `P<N` 或输入协方差病态，full-batch GD 的收敛由 `X^TX/P` 的最大特征值决定，必要时调小 `--lr`。
+- **训练损失有下界**：噪声在数据列空间正交补上的投影给出 `E[train MSE] = σ²(P-N)/P`（`P>N` 时），
+  所以 train loss 不会掉到 0，这是数据本身的性质，不是优化没收敛。
+- **测试损失是蒙特卡洛估计**：每次只抽 `P` 个新样本，其波动约为 `2||w-\bar w||/√P`，
+  因此在学生离 teacher 还远时（尤其 `epoch=0`）测得值会明显偏离解析值。
+  想要平滑的曲线就加大 `--n-test`（例如 `--n-test 100000`），此时测得值与解析值应吻合到 1% 以内。
 - `--noise-std 0` 时 test loss 可以降到机器精度附近；此时曲线会直接跌到底噪，属于预期行为。
