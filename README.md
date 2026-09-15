@@ -120,6 +120,9 @@ experiments/N32_P64_ep2000_te10/
 | `plot.py` | 画 loss 曲线与诊断图 |
 | `convergence_reference.py` | 调参参考：实测各 `P/N` 下的收敛速度、`lr` 稳定上限、可达的 test 下限 |
 | `phase_diagram.py` | N-P 相图：颜色表示 loss，扫整个 `(N, P)` 网格 |
+| `make_interactive.py` | 把相图网格打包成零依赖的交互 HTML（悬停读数 / 缩放 / 切换颜色刻度） |
+| `docs/log-scale-explained.md` | 对数坐标入门：什么时候该用、什么时候不该用 |
+| `docs/_check_viewer.mjs` | 交互图的 headless 自检（坐标↔格子映射、色标反转、读数格式） |
 | `main.py` | 主程序：解析参数 → 建 teacher/数据/student → 训练 → 存文件 → 打印汇总 |
 | `sweep.py` | 批量扫 `N`/`P`/`epoch`：每个格点跑一次完整实验，另出汇总表与叠加对比图 |
 | `smoke_test.py` | 自检：数值一致性、CSV 结构、loss 下降性 |
@@ -240,6 +243,38 @@ loss 跨约四个数量级（`1e-4` 到 `7e-1`），线性配色会把整个低 
 > `best` 与 `final` 两张图在 `epoch=1500` 下几乎相同：实测 `best − final` 的中位数是 `-2.2e-6`
 > 且**没有任何正值**，说明蒙特卡洛噪声级别之下两者已无差别，整张网格都收敛了。
 > 想看两者差异就把 `--epoch` 调小。
+
+### 交互版本（推荐用这个看图）
+
+```bash
+python make_interactive.py --open      # 自动打开刚生成的 interactive.html
+```
+
+生成 `phase/<name>/interactive.html`，**单文件、零依赖**（没有 plotly、没有 CDN，
+双击就能离线打开，实测 28 KB + 数据）。功能：
+
+| 操作 | 效果 |
+| --- | --- |
+| 鼠标悬停 | 实时显示该格的 `N`、`P`、`P/N`、loss、多种子标准差，以及是否有 `lr` 调整 |
+| 单击格子 | **固定**读数（再点一次取消），红色框标出选中格 |
+| 滚轮 | 以光标为中心缩放 |
+| 拖动 | 平移 |
+| 顶部下拉 | 切换显示的量（final / best / 解析 / train loss） |
+| 「颜色刻度」 | 在 `linear` / `log` / `asinh` 间切换，**坐标轴始终线性** |
+| 「在格子上显示数值」 | 把四位有效数字直接写在格子里 |
+
+> 想搞清对数刻度到底做了什么，就在这张图上把颜色刻度在 `linear` 和 `log` 之间来回切：
+> 同一份数据、同一个形状，只是低 loss 区域的对比度变了。详见
+> [`docs/log-scale-explained.md`](docs/log-scale-explained.md)。
+
+交互图的自检（不需要浏览器）：
+
+```bash
+node docs/_check_viewer.mjs phase/<name>/interactive.html
+```
+
+检查 9 项：网格数据完整性、每个格子的中心坐标能否反查回正确的 `(N, P)`、
+三种色标是否单调且把 `[min,max]` 映射到 `[0,1]`、读数与数字格式化是否安全。
 
 ---
 
