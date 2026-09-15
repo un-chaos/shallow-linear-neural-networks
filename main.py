@@ -28,7 +28,7 @@ from config import ExperimentConfig, parse_args
 from data import Teacher
 from io_utils import save_history_csv, save_metadata
 from model import Student, ridge_solution, stable_lr_bound
-from plot import plot_diagnostics, plot_loss_curves
+from plot import plot_diagnostics, plot_interactive_loss, plot_loss_curves
 from train import run_training
 
 
@@ -96,6 +96,8 @@ def main(argv: list[str] | None = None) -> int:
     csv_path = save_history_csv(hist, run_dir / "loss.csv")
     fig_path = plot_loss_curves(hist, cfg, run_dir / "loss_curves.png")
     diag_path = plot_diagnostics(hist, cfg, run_dir / "diagnostics.png")
+    iact_path = plot_interactive_loss(hist, cfg,
+                                      run_dir / "loss_curves_interactive.html")
     meta_path = save_metadata(cfg, hist, run_dir / "metadata.json", extra={
         "elapsed_seconds": round(time.perf_counter() - t0, 3),
         "analytic_test_mse_learned": ref_test,
@@ -105,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     })
 
     print("\n[output]")
-    for p in (csv_path, fig_path, diag_path, meta_path):
+    for p in (csv_path, fig_path, diag_path, iact_path, meta_path):
         print(f"  {p}")
     print(f"\n[done] final train MSE = {hist.final_train_loss:.6e}, "
           f"final test MSE = {hist.final_test_loss:.6e}, "

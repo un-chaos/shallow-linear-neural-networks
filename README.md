@@ -121,8 +121,11 @@ experiments/N32_P64_ep2000_te10/
 | `convergence_reference.py` | 调参参考：实测各 `P/N` 下的收敛速度、`lr` 稳定上限、可达的 test 下限 |
 | `phase_diagram.py` | N-P 相图：颜色表示 loss，扫整个 `(N, P)` 网格 |
 | `make_interactive.py` | 把相图网格打包成零依赖的交互 HTML（悬停读数 / 缩放 / 切换颜色刻度） |
+| `plot_interactive.py` | 交互式**曲线**图的引擎与 CLI（悬停十字线、放大镜、框选放大、y 轴对数） |
+| `docs/loss_curves.html` | 交互式 loss 曲线范例（零依赖单文件） |
 | `docs/log-scale-explained.md` | 对数坐标入门：什么时候该用、什么时候不该用 |
-| `docs/_check_viewer.mjs` | 交互图的 headless 自检（坐标↔格子映射、色标反转、读数格式） |
+| `docs/_check_viewer.mjs` | 相图交互图的自检（坐标↔格子映射、色标反转） |
+| `docs/_check_curves.mjs` | 曲线交互图的自检（坐标变换互逆、最近点查找、图例开关） |
 | `main.py` | 主程序：解析参数 → 建 teacher/数据/student → 训练 → 存文件 → 打印汇总 |
 | `sweep.py` | 批量扫 `N`/`P`/`epoch`：每个格点跑一次完整实验，另出汇总表与叠加对比图 |
 | `smoke_test.py` | 自检：数值一致性、CSV 结构、loss 下降性 |
@@ -280,7 +283,48 @@ node docs/_check_viewer.mjs phase/<name>/interactive.html
 
 ---
 
-## 9. 流程图
+## 9. 交互式 loss 曲线
+
+相图之外，**loss 曲线也是可交互的**。`main.py` 每次运行都会额外产出一个
+`loss_curves_interactive.html`（PNG 仍然保留，方便写论文）。
+
+| 操作 | 效果 |
+| --- | --- |
+| 悬停 | 十字线 + 浮动读数，显示该 x 处所有可见曲线的精确值，并高亮最近样本 |
+| **放大镜** | 右上角跟随光标的放大窗，2000 个点的曲线细节靠它看清（默认开启） |
+| 滚轮 | 以光标为中心缩放（x 和 y 同时） |
+| 拖动 | 平移 |
+| **Shift + 拖动** | **框选区域放大**（真正的 rubber-band zoom） |
+| 点图例 | 开关任意曲线（y 轴会重新适配） |
+| 「只看某一区间…」 | 直接输入 x 区间，例如 `0 200` |
+| 「y 轴」 | **线性 / 对数切换**（这才是真正的坐标轴取对数，会改变图形状） |
+
+曲线里包含：`train loss`、`test loss`、`解析 test loss`、噪声地板 `σ²`，
+以及默认隐藏的 `‖w−w̄‖`（在 `main.py` 产出的图里）。
+
+**扫参数结果也是交互的**：`sweep.py` 会额外出
+`sweep_test_loss_interactive.html`，把每个 run 作为一条可开关的曲线——
+叠加 PNG 超过几条就糊成一团，交互版本可以直接把不关心的曲线关掉。
+
+单独从任意 `loss.csv` 重建交互图：
+
+```bash
+python plot_interactive.py --csv experiments/<tag>/loss.csv              # 就地生成
+python plot_interactive.py --csv experiments/<tag>/loss.csv --publish   # 另存到 docs/
+```
+
+自检（不需要浏览器）：
+
+```bash
+node docs/_check_curves.mjs docs/loss_curves.html
+```
+
+检查 11 项，其中比较硬的是：**坐标变换与反变换互逆**（线性与对数两种模式，相对误差 < 1e-9）、
+**最近样本查找与暴力搜索逐点一致**、切换曲线后视图仍有效、数字格式化不产生 `NaN`。
+
+---
+
+## 10. 流程图
 
 用浏览器打开 `docs/pipeline.html`（自包含单文件，无需联网）：
 
@@ -297,7 +341,7 @@ node ~/.dsh/skills/archify/bin/archify.mjs deliver workflow docs/pipeline.workfl
 
 ---
 
-## 10. 批量扫参数
+## 11. 批量扫参数
 
 ```bash
 python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
@@ -322,7 +366,7 @@ python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
 
 ---
 
-## 11. 自检
+## 12. 自检
 
 ```bash
 python smoke_test.py
@@ -335,7 +379,7 @@ python smoke_test.py
 
 ---
 
-## 12. 数值提示
+## 13. 数值提示
 
 - student 与数据用**互相独立**的随机流（student 用 `seed+10000`），改初始化不会打乱数据集。
 - 默认 `lr=0.1`，对 `E[xx^T]=I` 且 `P>=N` 的情形稳定；若 `P<N` 或输入协方差病态，full-batch GD 的收敛由 `X^TX/P` 的最大特征值决定，必要时调小 `--lr`。

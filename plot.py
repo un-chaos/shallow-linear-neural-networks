@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib
+import numpy as np
 
 matplotlib.use("Agg")  # headless-safe; must precede pyplot import
 import matplotlib.pyplot as plt  # noqa: E402
@@ -86,6 +87,45 @@ def plot_diagnostics(hist: TrainingHistory, cfg: ExperimentConfig, path: Path) -
     fig.savefig(path)
     plt.close(fig)
     return path
+
+
+def plot_interactive_loss(hist: TrainingHistory, cfg: ExperimentConfig, path: Path) -> Path:
+    """Same curves as :func:`plot_loss_curves`, but as an interactive HTML figure.
+
+    Adds the analytic risk as a third toggleable curve and the recorded weight
+    distance, which the PNG deliberately leaves out to stay readable.
+    """
+    from plot_interactive import Series, hlines_to_series, write_interactive_curves
+
+    series = [
+        Series(name="train loss", x=np.asarray(hist.train_epoch, dtype=float),
+               y=np.asarray(hist.train_loss, dtype=float), color="#1f77b4"),
+        Series(name="test loss（新数据）", x=np.asarray(hist.test_epoch, dtype=float),
+               y=np.asarray(hist.test_loss, dtype=float), color="#d62728",
+               width=1.8, markers=True),
+        Series(name="解析 test loss", x=np.asarray(hist.test_epoch, dtype=float),
+               y=np.asarray(hist.test_analytic, dtype=float), color="#2ca02c",
+               width=1.6),
+        Series(name="‖w−w̄‖", x=np.asarray(hist.test_epoch, dtype=float),
+               y=np.asarray(hist.weight_distance, dtype=float), color="#9467bd",
+               visible=False),
+    ]
+    if cfg.noise_std > 0:
+        series.insert(1, hlines_to_series("noise floor σ²", cfg.noise_std**2,
+                                          min(hist.train_epoch),
+                                          max(hist.train_epoch),
+                                          color="#999"))
+
+    return write_interactive_curves(
+        path,
+        title=f"N={cfg.N}, P={cfg.P}, epochs={cfg.epoch}",
+        subtitle=(f"test_every={cfg.test_every}　lr={cfg.lr:g}　σ={cfg.noise_std:g}　"
+                  f"seed={cfg.seed}　P/N={cfg.P / cfg.N:.2f}"),
+        xlabel="epoch", ylabel="MSE",
+        series=series,
+        source="数据来源：<code>loss.csv</code>（同一份数据，PNG 用 matplotlib 画）",
+        magnify_default=True,
+    )
 
 
 def _title(cfg: ExperimentConfig) -> str:

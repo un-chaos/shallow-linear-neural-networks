@@ -116,6 +116,37 @@ def write_summary(rows: list[dict], path: Path) -> Path:
     return path
 
 
+def plot_sweep_interactive(rows: list[dict], sweep_dir: Path, sweep_name: str) -> Path:
+    """Same runs as :func:`plot_sweep`, but every run is a toggleable curve.
+
+    An overlay PNG becomes unreadable past a handful of runs; here the legend
+    hides the ones you do not care about, and hover gives exact values.
+    """
+    from plot_interactive import Series, write_interactive_curves
+
+    palette = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e",
+               "#17becf", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22"]
+    series = []
+    for k, row in enumerate(rows):
+        epochs, test_loss = _read_curve(Path(row["run_dir"]) / "loss.csv")
+        if not epochs:
+            continue
+        series.append(Series(
+            name=f"N={row['N']}, P={row['P']}, ep={row['epoch']} (P/N={row['P'] / row['N']:.2f})",
+            x=np.asarray(epochs, dtype=float), y=np.asarray(test_loss, dtype=float),
+            color=palette[k % len(palette)], width=1.7, markers=True,
+        ))
+    return write_interactive_curves(
+        sweep_dir / "sweep_test_loss_interactive.html",
+        title=f"Test loss sweep — {sweep_name}",
+        subtitle=f"{len(series)} 条曲线；点图例可开关任意曲线",
+        xlabel="epoch", ylabel="test MSE",
+        series=series,
+        source="数据来源：各 run 的 <code>loss.csv</code>",
+        magnify_default=False,
+    )
+
+
 def plot_sweep(rows: list[dict], sweep_dir: Path, sweep_name: str) -> Path:
     """Overlay the test-loss curves of every run in the sweep."""
     configure_style()
@@ -163,6 +194,7 @@ def main(argv: list[str] | None = None) -> int:
 
     summary = write_summary(rows, sweep_dir / "sweep_summary.csv")
     figure = plot_sweep(rows, sweep_dir, sweep_name)
+    iactive = plot_sweep_interactive(rows, sweep_dir, sweep_name)
 
     print("\n" + "=" * 68)
     print(f"{'N':>5} {'P':>5} {'epoch':>7} {'train':>12} {'test':>12} {'best test':>12}")
@@ -172,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
               f"{r['final_train_loss']:>12.4e} {r['final_test_loss']:>12.4e} "
               f"{r['best_test_loss']:>12.4e}")
     print("=" * 68)
-    print(f"[output] {summary}\n         {figure}")
+    print(f"[output] {summary}\n         {figure}\n         {iactive}")
     return 0
 
 

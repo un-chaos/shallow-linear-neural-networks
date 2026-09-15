@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>标准泛化实验  N=32, P=128, epochs=400</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+         background: #fafafa; color: #1a1a1a; }
+  header { padding: 12px 20px 4px; }
+  h1 { font-size: 17px; margin: 0 0 2px; }
+  .sub { color: #666; font-size: 12.5px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+             padding: 8px 20px; background: #fff; border-bottom: 1px solid #e3e3e3;
+             position: sticky; top: 0; z-index: 5; }
+  .toolbar label { font-size: 13px; color: #444; }
+  select, button, input { font: inherit; }
+  select, button { padding: 3px 8px; border: 1px solid #bbb; border-radius: 5px; background: #fff; }
+  button { cursor: pointer; } button:hover { background: #f0f0f0; }
+  #legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 20px 2px; }
+  #legend .item { display: flex; align-items: center; gap: 6px; cursor: pointer;
+                  font-size: 13px; user-select: none; }
+  #legend .item.off { opacity: .35; text-decoration: line-through; }
+  #legend .swatch { width: 15px; height: 3px; border-radius: 2px; }
+  .readout { padding: 6px 20px; font-family: ui-monospace, Consolas, monospace;
+             font-size: 12.5px; background: #fff; border-bottom: 1px solid #e3e3e3;
+             min-height: 30px; white-space: pre; overflow-x: auto; }
+  .wrap { padding: 10px 20px 26px; }
+  canvas { touch-action: none; cursor: crosshair; display: block; border-radius: 6px; }
+  .hint { color: #777; font-size: 12px; padding: 0 20px 22px; max-width: 980px; }
+  code { background: #eee; padding: 1px 5px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>标准泛化实验  N=32, P=128, epochs=400</h1>
+  <div class="sub">悬停读值 · 滚轮缩放 · 拖动平移 · Shift+拖动框选 · 点图例开关</div>
+</header>
+
+<div class="toolbar">
+  <label>y 轴
+    <select id="yscale">
+      <option value="linear">线性</option>
+      <option value="log">对数 log</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="magnify" checked> 放大镜跟随光标</label>
+  <button id="reset">重置视图</button>
+  <button id="fitx">只看某一区间…</button>
+</div>
+
+<div id="legend"></div>
+<div class="readout" id="readout">把鼠标移到图上。</div>
+<div class="wrap"><canvas id="cv" width="980" height="560"></canvas></div>
+<div class="hint">
+  悬停读值 · 滚轮缩放 · 拖动平移 · <b>Shift+拖动框选放大</b> · 点图例开关曲线 · 切换 y 轴对数。
+  悬停时右上角会显示放大镜，看 2000 个点的曲线细节用它。
+  数据来源：<code>loss.csv</code>
+</div>
+
+<script id="fig-data" type="application/json">{"xlabel":"epoch","ylabel":"MSE","series":[{"name":"train_loss","x":[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0,11.0,12.0,13.0,14.0,15.0,16.0,17.0,18.0,19.0,20.0,21.0,22.0,23.0,24.0,25.0,26.0,27.0,28.0,29.0,30.0,31.0,32.0,33.0,34.0,35.0,36.0,37.0,38.0,39.0,40.0,41.0,42.0,43.0,44.0,45.0,46.0,47.0,48.0,49.0,50.0,51.0,52.0,53.0,54.0,55.0,56.0,57.0,58.0,59.0,60.0,61.0,62.0,63.0,64.0,65.0,66.0,67.0,68.0,69.0,70.0,71.0,72.0,73.0,74.0,75.0,76.0,77.0,78.0,79.0,80.0,81.0,82.0,83.0,84.0,85.0,86.0,87.0,88.0,89.0,90.0,91.0,92.0,93.0,94.0,95.0,96.0,97.0,98.0,99.0,100.0,101.0,102.0,103.0,104.0,105.0,106.0,107.0,108.0,109.0,110.0,111.0,112.0,113.0,114.0,115.0,116.0,117.0,118.0,119.0,120.0,121.0,122.0,123.0,124.0,125.0,126.0,127.0,128.0,129.0,130.0,131.0,132.0,133.0,134.0,135.0,136.0,137.0,138.0,139.0,140.0,141.0,142.0,143.0,144.0,145.0,146.0,147.0,148.0,149.0,150.0,151.0,152.0,153.0,154.0,155.0,156.0,157.0,158.0,159.0,160.0,161.0,162.0,163.0,164.0,165.0,166.0,167.0,168.0,169.0,170.0,171.0,172.0,173.0,174.0,175.0,176.0,177.0,178.0,179.0,180.0,181.0,182.0,183.0,184.0,185.0,186.0,187.0,188.0,189.0,190.0,191.0,192.0,193.0,194.0,195.0,196.0,197.0,198.0,199.0,200.0,201.0,202.0,203.0,204.0,205.0,206.0,207.0,208.0,209.0,210.0,211.0,212.0,213.0,214.0,215.0,216.0,217.0,218.0,219.0,220.0,221.0,222.0,223.0,224.0,225.0,226.0,227.0,228.0,229.0,230.0,231.0,232.0,233.0,234.0,235.0,236.0,237.0,238.0,239.0,240.0,241.0,242.0,243.0,244.0,245.0,246.0,247.0,248.0,249.0,250.0,251.0,252.0,253.0,254.0,255.0,256.0,257.0,258.0,259.0,260.0,261.0,262.0,263.0,264.0,265.0,266.0,267.0,268.0,269.0,270.0,271.0,272.0,273.0,274.0,275.0,276.0,277.0,278.0,279.0,280.0,281.0,282.0,283.0,284.0,285.0,286.0,287.0,288.0,289.0,290.0,291.0,292.0,293.0,294.0,295.0,296.0,297.0,298.0,299.0,300.0,301.0,302.0,303.0,304.0,305.0,306.0,307.0,308.0,309.0,310.0,311.0,312.0,313.0,314.0,315.0,316.0,317.0,318.0,319.0,320.0,321.0,322.0,323.0,324.0,325.0,326.0,327.0,328.0,329.0,330.0,331.0,332.0,333.0,334.0,335.0,336.0,337.0,338.0,339.0,340.0,341.0,342.0,343.0,344.0,345.0,346.0,347.0,348.0,349.0,350.0,351.0,352.0,353.0,354.0,355.0,356.0,357.0,358.0,359.0,360.0,361.0,362.0,363.0,364.0,365.0,366.0,367.0,368.0,369.0,370.0,371.0,372.0,373.0,374.0,375.0,376.0,377.0,378.0,379.0,380.0,381.0,382.0,383.0,384.0,385.0,386.0,387.0,388.0,389.0,390.0,391.0,392.0,393.0,394.0,395.0,396.0,397.0,398.0,399.0,400.0],"y":[0.365566333639,0.228074293566,0.150448846122,0.104257568402,0.0752936895488,0.0562144232195,0.0430804430332,0.0336919828865,0.0267683290395,0.02153181619,0.0174904903106,0.0143208966163,0.0118027417822,0.00978122287448,0.00814456094041,0.0068101491552,0.00571573328506,0.00481362223064,0.00406677792729,0.00344610475415,0.0029285257517,0.00249558839509,0.00213243540152,0.00182703273113,0.00156958242147,0.00135207062397,0.00116791609956,0.00101169439319,0.000878919711738,0.000765871264814,0.000669454183088,0.000587087544011,0.000516613799571,0.000456225207538,0.000404403846771,0.000359872538793,0.000321554564845,0.000288540504849,0.000260060864429,0.000235463421861,0.000214194435931,0.000195783021197,0.000179828128704,0.000165987675358,0.000153969449461,0.00014352348783,0.00013443567473,0.000126522357364,0.000119625808778,0.000113610398516,0.00010835935546,0.000103772027016,9.97615550422e-05,9.62529022292e-05,9.31811736946e-05,9.04901876173e-05,8.81312562981e-05,8.60621452752e-05,8.42461833251e-05,8.26515005058e-05,8.12503750082e-05,8.00186725971e-05,7.89353649463e-05,7.79821152841e-05,7.71429215407e-05,7.64038086803e-05,7.57525631542e-05,7.5178503469e-05,7.46722817577e-05,7.42257119937e-05,7.38316211296e-05,7.3483719979e-05,7.31764911238e-05,7.29050915145e-05,7.26652677676e-05,7.2453282442e-05,7.22658498221e-05,7.21000799367e-05,7.19534297219e-05,7.18236603854e-05,7.17088001579e-05,7.16071117302e-05,7.1517063766e-05,7.14373059669e-05,7.13666472311e-05,7.1304036512e-05,7.1248546033e-05,7.11993565605e-05,7.11557444755e-05,7.11170704184e-05,7.10827693119e-05,7.10523415879e-05,7.10253454724e-05,7.10013901957e-05,7.0980130016e-05,7.09612589554e-05,7.09445061621e-05,7.0929631823e-05,7.091642356e-05,7.09046932507e-05,7.08942742243e-05,7.08850187852e-05,7.08767960284e-05,7.0869489908e-05,7.08629975331e-05,7.08572276595e-05,7.08520993588e-05,7.08475408394e-05,7.08434884059e-05,7.08398855365e-05,7.08366820683e-05,7.08338334754e-05,7.08313002298e-05,7.08290472357e-05,7.08270433288e-05,7.0825260832e-05,7.08236751625e-05,7.08222644829e-05,7.08210093928e-05,7.08198926548e-05,7.08188989514e-05,7.08180146701e-05,7.08172277122e-05,7.08165273236e-05,7.0815903944e-05,7.08153490742e-05,7.08148551572e-05,7.08144154733e-05,7.0814024047e-05,7.08136755636e-05,7.08133652966e-05,7.08130890415e-05,7.08128430583e-05,7.08126240197e-05,7.08124289656e-05,7.08122552622e-05,7.08121005658e-05,7.08119627911e-05,7.08118400822e-05,7.08117307873e-05,7.08116334365e-05,7.08115467212e-05,7.08114694769e-05,7.08114006667e-05,7.08113393676e-05,7.0811284758e-05,7.08112361063e-05,7.08111927612e-05,7.08111541426e-05,7.08111197343e-05,7.08110890762e-05,7.08110617589e-05,7.08110374177e-05,7.08110157278e-05,7.08109963999e-05,7.08109791764e-05,7.08109638278e-05,7.08109501496e-05,7.08109379598e-05,7.08109270961e-05,7.08109174142e-05,7.08109087852e-05,7.08109010945e-05,7.081089424e-05,7.08108881306e-05,7.08108826851e-05,7.08108778314e-05,7.08108735051e-05,7.08108696488e-05,7.08108662114e-05,7.08108631473e-05,7.0810860416e-05,7.08108579812e-05,7.08108558107e-05,7.08108538759e-05,7.08108521511e-05,7.08108506134e-05,7.08108492426e-05,7.08108480206e-05,7.08108469311e-05,7.08108459599e-05,7.08108450939e-05,7.08108443219e-05,7.08108436336e-05,7.081084302e-05,7.08108424729e-05,7.08108419851e-05,7.08108415502e-05,7.08108411624e-05,7.08108408167e-05,7.08108405084e-05,7.08108402336e-05,7.08108399885e-05,7.081083977e-05,7.08108395751e-05,7.08108394014e-05,7.08108392465e-05,7.08108391084e-05,7.08108389852e-05,7.08108388754e-05,7.08108387775e-05,7.08108386901e-05,7.08108386123e-05,7.08108385428e-05,7.08108384809e-05,7.08108384257e-05,7.08108383765e-05,7.08108383326e-05,7.08108382934e-05,7.08108382585e-05,7.08108382274e-05,7.08108381996e-05,7.08108381749e-05,7.08108381528e-05,7.08108381331e-05,7.08108381155e-05,7.08108380999e-05,7.08108380859e-05,7.08108380735e-05,7.08108380624e-05,7.08108380525e-05,7.08108380436e-05,7.08108380358e-05,7.08108380287e-05,7.08108380225e-05,7.08108380169e-05,7.08108380119e-05,7.08108380075e-05,7.08108380035e-05,7.0810838e-05,7.08108379968e-05,7.0810837994e-05,7.08108379915e-05,7.08108379893e-05,7.08108379873e-05,7.08108379855e-05,7.08108379839e-05,7.08108379825e-05,7.08108379812e-05,7.08108379801e-05,7.08108379791e-05,7.08108379782e-05,7.08108379774e-05,7.08108379767e-05,7.08108379761e-05,7.08108379755e-05,7.0810837975e-05,7.08108379745e-05,7.08108379741e-05,7.08108379738e-05,7.08108379735e-05,7.08108379732e-05,7.08108379729e-05,7.08108379727e-05,7.08108379725e-05,7.08108379723e-05,7.08108379721e-05,7.0810837972e-05,7.08108379719e-05,7.08108379718e-05,7.08108379717e-05,7.08108379716e-05,7.08108379715e-05,7.08108379714e-05,7.08108379714e-05,7.08108379713e-05,7.08108379712e-05,7.08108379712e-05,7.08108379712e-05,7.08108379711e-05,7.08108379711e-05,7.08108379711e-05,7.0810837971e-05,7.0810837971e-05,7.0810837971e-05,7.0810837971e-05,7.0810837971e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379709e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05,7.08108379708e-05],"color":"#1f77b4","width":1.6,"markers":false,"visible":true},{"name":"test_loss","x":[0.0,20.0,40.0,60.0,80.0,100.0,120.0,140.0,160.0,180.0,200.0,220.0,240.0,260.0,280.0,300.0,320.0,340.0,360.0,380.0,400.0],"y":[0.661988136791,0.00891187653365,0.000590653195341,0.000157397689754,0.000128722443473,0.000125767850506,0.000127332829498,0.000126178351725,0.000127893566858,0.000127608098709,0.000127862333216,0.000126357424642,0.00012572638518,0.000126144425155,0.000126439831811,0.000126406959435,0.00012622071757,0.000126540775262,0.000125885030321,0.000128032089556,0.000126855718015],"color":"#d62728","width":1.6,"markers":true,"visible":true},{"name":"test_loss_analytic","x":[0.0,20.0,40.0,60.0,80.0,100.0,120.0,140.0,160.0,180.0,200.0,220.0,240.0,260.0,280.0,300.0,320.0,340.0,360.0,380.0,400.0],"y":[0.661012786654,0.00888137520062,0.000593388461219,0.00015744646475,0.000128387022122,0.000126645343653,0.0001266444471,0.000126677221048,0.000126686987233,0.000126689186643,0.000126689606311,0.000126689668162,0.000126689670451,0.00012668966702,0.000126689664934,0.000126689664032,0.000126689663688,0.000126689663564,0.000126689663522,0.000126689663507,0.000126689663502],"color":"#2ca02c","width":1.6,"markers":false,"visible":true}]}</script>
+<script>
+const FIG = JSON.parse(document.getElementById('fig-data').textContent);
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const readout = document.getElementById('readout');
+const yscaleSel = document.getElementById('yscale');
+const magnifyChk = document.getElementById('magnify');
+const legendBox = document.getElementById('legend');
+
+const M = { left: 74, right: 22, top: 18, bottom: 54 };
+const PL = () => M.left, PT = () => M.top;
+const PW = () => cv.width - M.left - M.right, PH = () => cv.height - M.top - M.bottom;
+// magnifier occupies the top-right corner of the plot area
+const MAG = { w: 300, h: 190, pad: 8 };
+
+let full = null;        // full data range
+let view = null;        // {x0,x1,y0,y1,log}
+let hover = null;       // position in canvas pixels
+let band = null;        // rubber-band selection in pixel space
+let drag = null;        // active pan / band gesture
+let series = [];
+
+function num(v) { return v === null || !isFinite(v); }
+
+function computeFull() {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const s of series) {
+    if (!s.visible) continue;
+    for (let i = 0; i < s.x.length; i++) {
+      const xv = s.x[i], yv = s.y[i];
+      if (num(xv) || num(yv)) continue;
+      if (xv < x0) x0 = xv; if (xv > x1) x1 = xv;
+      if (yv < y0) y0 = yv; if (yv > y1) y1 = yv;
+    }
+  }
+  if (!isFinite(x0)) { x0 = 0; x1 = 1; y0 = 0; y1 = 1; }
+  if (x1 === x0) { x1 = x0 + 1; }
+  const pad = (y1 - y0) * 0.06 || Math.abs(y1) * 0.1 || 1;
+  return { x0, x1, y0: y0 - pad, y1: y1 + pad };
+}
+
+function logMode() { return yscaleSel.value === 'log'; }
+
+function yRange() {
+  // In log mode the axis must stay positive: use the smallest positive value so
+  // nothing silently disappears. Returns the y limits plus the current mode.
+  const base = computeFull();
+  if (!logMode()) return { y0: base.y0, y1: base.y1, log: false };
+  let lo = Infinity, hi = -Infinity;
+  for (const s of series) {
+    if (!s.visible) continue;
+    for (const v of s.y) { if (!num(v) && v > 0) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+  }
+  if (!isFinite(lo)) { lo = 1e-12; hi = 1; }
+  if (hi <= lo) hi = lo * 10;
+  return { y0: lo / 1.4, y1: hi * 1.4, log: true };
+}
+
+function resetView() {
+  full = computeFull();
+  const y = yRange();   // yRange carries y limits only; x comes from the data
+  view = { x0: full.x0, x1: full.x1, y0: y.y0, y1: y.y1, log: y.log };
+  band = null;
+  draw();
+}
+
+function applyMode() {
+  // switch linear <-> log: x window is preserved, y is refitted
+  full = computeFull();
+  const y = yRange();
+  view = { x0: view ? view.x0 : full.x0, x1: view ? view.x1 : full.x1,
+           y0: y.y0, y1: y.y1, log: y.log };
+  draw();
+}
+
+// ---- transforms --------------------------------------------------------
+function X(v) { return PL() + (v - view.x0) / (view.x1 - view.x0) * PW(); }
+function Y(v) {
+  if (!view.log) return PT() + (1 - (v - view.y0) / (view.y1 - view.y0)) * PH();
+  const a = Math.log10(Math.max(view.y0, 1e-300)), b = Math.log10(view.y1);
+  return PT() + (1 - (Math.log10(Math.max(v, 1e-300)) - a) / (b - a)) * PH();
+}
+function invX(px) { return view.x0 + (px - PL()) / PW() * (view.x1 - view.x0); }
+function invY(py) {
+  if (!view.log) return view.y0 + (1 - (py - PT()) / PH()) * (view.y1 - view.y0);
+  const a = Math.log10(Math.max(view.y0, 1e-300)), b = Math.log10(view.y1);
+  const t = 1 - (py - PT()) / PH();
+  return Math.pow(10, a + t * (b - a));
+}
+
+function niceTicks(lo, hi, n) {
+  const span = hi - lo;
+  if (!(span > 0)) return [lo];
+  const raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(v);
+  return out;
+}
+
+const fmt = v => {
+  if (num(v)) return '—';
+  const a = Math.abs(v);
+  if (a === 0) return '0';
+  if (a < 1e-3 || a >= 1e5) return v.toExponential(2);
+  return a < 1 ? v.toFixed(4) : v.toFixed(3);
+};
+
+// ---- drawing -----------------------------------------------------------
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+  const w = PW(), h = PH();
+
+  // grid + y ticks
+  ctx.font = '11px ui-monospace, monospace';
+  const yTicks = logMode()
+    ? logTicks(view.y0, view.y1)
+    : niceTicks(view.y0, view.y1, 6);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (const v of yTicks) {
+    const py = Y(v);
+    if (py < PT() - 1 || py > PT() + h + 1) continue;
+    ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PL(), py); ctx.lineTo(PL() + w, py); ctx.stroke();
+    ctx.fillStyle = '#444';
+    ctx.fillText(logMode() ? v.toExponential(0) : fmt(v), PL() - 7, py);
+  }
+  // x ticks
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const v of niceTicks(view.x0, view.x1, 8)) {
+    const px = X(v);
+    if (px < PL() - 1 || px > PL() + w + 1) continue;
+    ctx.strokeStyle = '#f0f0f0'; ctx.beginPath();
+    ctx.moveTo(px, PT()); ctx.lineTo(px, PT() + h); ctx.stroke();
+    ctx.fillStyle = '#444'; ctx.fillText(fmt(v), px, PT() + h + 7);
+  }
+
+  // clip plot area
+  ctx.save();
+  ctx.beginPath(); ctx.rect(PL(), PT(), w, h); ctx.clip();
+
+  // fix the browser's unary-minus handling before drawing
+  for (const s of series) {
+    if (!s.visible || s.x.length === 0) continue;
+    ctx.strokeStyle = s.color; ctx.lineWidth = s.width;
+    ctx.beginPath();
+    let pen = false;
+    const stride = Math.max(1, Math.floor(s.x.length / (w * 2)));
+    for (let i = 0; i < s.x.length; i += stride) {
+      const px = X(s.x[i]), py = Y(s.y[i]);
+      if (!isFinite(px) || !isFinite(py)) { pen = false; continue; }
+      if (!pen) { ctx.moveTo(px, py); pen = true; } else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    if (s.markers && s.x.length <= 400) {
+      for (let i = 0; i < s.x.length; i++) {
+        const px = X(s.x[i]), py = Y(s.y[i]);
+        if (!isFinite(px) || !isFinite(py)) continue;
+        ctx.fillStyle = s.color;
+        ctx.beginPath(); ctx.arc(px, py, 2.6, 0, 6.2832); ctx.fill();
+      }
+    }
+  }
+
+  // hover crosshair + value dots
+  if (hover) {
+    const hx = hover.px, hy = hover.py;
+    ctx.strokeStyle = '#999'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(hx, PT()); ctx.lineTo(hx, PT() + h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(PL(), hy); ctx.lineTo(PL() + w, hy); ctx.stroke();
+    ctx.setLineDash([]);
+    for (const s of series) {
+      if (!s.visible || s.x.length === 0) continue;
+      const xv = invX(hx);
+      const i = nearestIndex(s, xv);
+      if (i < 0) continue;
+      const py = Y(s.y[i]);
+      if (!isFinite(py)) continue;
+      ctx.fillStyle = s.color;
+      ctx.beginPath(); ctx.arc(X(s.x[i]), py, 4, 0, 6.2832); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  }
+
+  // rubber band
+  if (band) {
+    ctx.fillStyle = 'rgba(40,110,200,0.16)';
+    ctx.strokeStyle = 'rgba(40,110,200,0.8)'; ctx.lineWidth = 1;
+    const x = Math.min(band.x0, band.x1), y = Math.min(band.y0, band.y1);
+    const bw = Math.abs(band.x1 - band.x0), bh = Math.abs(band.y1 - band.y0);
+    ctx.fillRect(x, y, bw, bh); ctx.strokeRect(x, y, bw, bh);
+  }
+
+  // magnifier (drawn inside the clipped plot area)
+  if (magnifyChk.checked && hover) drawMagnifier(hover);
+  ctx.restore();
+
+  // axes frame
+  ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+  ctx.strokeRect(PL(), PT(), w, h);
+  ctx.fillStyle = '#222'; ctx.font = '13px "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(FIG.xlabel, PL() + w / 2, cv.height - 14);
+  ctx.save();
+  ctx.translate(15, PT() + h / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'top';
+  ctx.fillText(FIG.ylabel + (logMode() ? '（对数轴）' : ''), 0, 0);
+  ctx.restore();
+}
+
+function logTicks(lo, hi) {
+  const out = [];
+  const a = Math.floor(Math.log10(Math.max(lo, 1e-300)));
+  const b = Math.ceil(Math.log10(Math.max(hi, 1e-300)));
+  for (let e = a; e <= b; e++) out.push(Math.pow(10, e));
+  return out.filter(v => v >= lo && v <= hi * 1.0001);
+}
+
+function nearestIndex(s, xv) {
+  // binary search on a monotonically increasing x
+  const x = s.x;
+  if (xv <= x[0]) return 0;
+  if (xv >= x[x.length - 1]) return x.length - 1;
+  let lo = 0, hi = x.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (x[mid] <= xv) lo = mid; else hi = mid;
+  }
+  return (xv - x[lo] <= x[hi] - xv) ? lo : hi;
+}
+
+function drawMagnifier(pos) {
+  const x0 = PL() + PW() - MAG.w - MAG.pad, y0 = PT() + MAG.pad;
+  const half = (view.x1 - view.x0) * 0.04;   // window width in data units
+  const cx = invX(pos.px);
+  let lo = cx - half, hi = cx + half;
+  // y window: spread of the visible series inside that x window
+  let ylo = Infinity, yhi = -Infinity;
+  for (const s of series) {
+    if (!s.visible) continue;
+    for (let i = 0; i < s.x.length; i++) {
+      if (s.x[i] < lo || s.x[i] > hi) continue;
+      if (num(s.y[i])) continue;
+      ylo = Math.min(ylo, s.y[i]); yhi = Math.max(yhi, s.y[i]);
+    }
+  }
+  if (!isFinite(ylo)) { ylo = view.y0; yhi = view.y1; }
+  const pad = (yhi - ylo) * 0.15 || Math.abs(yhi) * 0.1 || 1;
+  ylo -= pad; yhi += pad;
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x0, y0, MAG.w, MAG.h); ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.94)'; ctx.fillRect(x0, y0, MAG.w, MAG.h);
+  const mx = v => x0 + (v - lo) / (hi - lo) * MAG.w;
+  const my = v => y0 + (1 - (v - ylo) / (yhi - ylo)) * MAG.h;
+  for (const s of series) {
+    if (!s.visible) continue;
+    ctx.strokeStyle = s.color; ctx.lineWidth = s.width + 0.4;
+    ctx.beginPath();
+    let pen = false;
+    for (let i = 0; i < s.x.length; i++) {
+      if (s.x[i] < lo || s.x[i] > hi) { pen = false; continue; }
+      const px = mx(s.x[i]), py = my(s.y[i]);
+      if (!isFinite(px) || !isFinite(py)) { pen = false; continue; }
+      if (!pen) { ctx.moveTo(px, py); pen = true; } else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(mx(cx), y0); ctx.lineTo(mx(cx), y0 + MAG.h); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = '#bbb'; ctx.strokeRect(x0, y0, MAG.w, MAG.h);
+  ctx.fillStyle = '#666'; ctx.font = '11px ui-monospace, monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.fillText('放大镜 x∈[' + fmt(lo) + ', ' + fmt(hi) + ']', x0 + 6, y0 + MAG.h - 5);
+}
+
+// ---- readout -----------------------------------------------------------
+function updateReadout() {
+  if (!hover) { readout.textContent = '把鼠标移到图上。'; return; }
+  const xv = invX(hover.px);
+  let best = null;
+  for (const s of series) {
+    if (!s.visible || s.x.length === 0) continue;
+    const i = nearestIndex(s, xv);
+    if (i < 0) continue;
+    if (!best || Math.abs(s.x[i] - xv) < Math.abs(best.x - xv)) best = { s, i };
+  }
+  if (!best) { readout.textContent = `x = ${fmt(xv)}`; return; }
+  const parts = [`x = ${fmt(best.s.x[best.i])}`];
+  for (const s of series) {
+    if (!s.visible || s.x.length === 0) continue;
+    const i = nearestIndex(s, xv);
+    if (i < 0) continue;
+    parts.push(`${s.name} = ${fmt(s.y[i])}`);
+  }
+  readout.textContent = parts.join('   |   ');
+}
+
+// ---- interaction -------------------------------------------------------
+function pos(ev) {
+  const r = cv.getBoundingClientRect();
+  return { px: (ev.clientX - r.left) * (cv.width / r.width),
+           py: (ev.clientY - r.top) * (cv.height / r.height) };
+}
+const inPlot = p => p.px >= PL() && p.px <= PL() + PW() && p.py >= PT() && p.py <= PT() + PH();
+
+cv.addEventListener('mousemove', ev => {
+  const p = pos(ev);
+  hover = inPlot(p) ? p : null;
+  if (drag && !ev.shiftKey) {
+    const cw = PW() / (drag.view.x1 - drag.view.x0), chh = PH() / (drag.view.y1 - drag.view.y0);
+    const dx = (p.px - drag.px) / cw, dy = (p.py - drag.py) / chh;
+    view.x0 = drag.view.x0 - dx; view.x1 = drag.view.x1 - dx;
+    view.y0 = drag.view.y0 - dy; view.y1 = drag.view.y1 - dy;
+  } else if (drag && ev.shiftKey) {
+    band = { x0: drag.px, y0: drag.py, x1: p.px, y1: p.py };
+  }
+  updateReadout(); draw();
+});
+
+cv.addEventListener('pointerdown', ev => {
+  const p = pos(ev);
+  if (!inPlot(p)) return;
+  drag = { px: p.px, py: p.py, view: { ...view }, shifted: ev.shiftKey };
+  band = ev.shiftKey ? { x0: p.px, y0: p.py, x1: p.px, y1: p.py } : null;
+  cv.setPointerCapture(ev.pointerId);
+});
+
+cv.addEventListener('pointerup', ev => {
+  if (drag && drag.shifted && band) {
+    const x0 = invX(Math.min(band.x0, band.x1)), x1 = invX(Math.max(band.x0, band.x1));
+    const y0 = invY(Math.max(band.y0, band.y1)), y1 = invY(Math.min(band.y0, band.y1));
+    if (Math.abs(x1 - x0) > 0 && Math.abs(y1 - y0) > 0
+        && (view.log ? y0 > 0 && y1 > 0 : true)) {
+      view = { x0, x1, y0, y1 };
+    }
+  }
+  drag = null; band = null; draw();
+});
+
+cv.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const p = pos(ev);
+  if (!inPlot(p)) return;
+  const k = ev.deltaY < 0 ? 0.82 : 1 / 0.82;
+  const ax = invX(p.px), ay = invY(p.py);
+  view.x0 = ax - (ax - view.x0) * k; view.x1 = ax + (view.x1 - ax) * k;
+  if (!view.log) {
+    view.y0 = ay - (ay - view.y0) * k; view.y1 = ay + (view.y1 - ay) * k;
+  }
+  hover = p; updateReadout(); draw();
+}, { passive: false });
+
+yscaleSel.addEventListener('change', applyMode);
+magnifyChk.addEventListener('change', draw);
+document.getElementById('reset').addEventListener('click', resetView);
+document.getElementById('fitx').addEventListener('click', () => {
+  const a = prompt('x 轴区间，例如 0 200', `${fmt(view.x0)} ${fmt(view.x1)}`);
+  if (!a) return;
+  const [s0, s1] = a.split(/[\s,]+/).map(Number);
+  if (isFinite(s0) && isFinite(s1) && s1 > s0) { view.x0 = s0; view.x1 = s1; draw(); }
+});
+
+// ---- build legend ------------------------------------------------------
+function buildLegend() {
+  legendBox.innerHTML = '';
+  for (const s of series) {
+    const d = document.createElement('div');
+    d.className = 'item' + (s.visible ? '' : ' off');
+    d.innerHTML = `<span class="swatch" style="background:${s.color}"></span>${s.name}`;
+    d.onclick = () => { s.visible = !s.visible; toggleSeries(); };
+    legendBox.appendChild(d);
+  }
+}
+
+function toggleSeries() {
+  // the axis limits depend on which series are visible, so refit y (keep x)
+  const y = yRange();
+  view.y0 = y.y0; view.y1 = y.y1; view.log = y.log;
+  buildLegend(); draw();
+}
+
+series = FIG.series.map(s => ({ ...s }));
+buildLegend();
+resetView();
+</script>
+</body>
+</html>
