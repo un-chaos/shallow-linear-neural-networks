@@ -118,6 +118,7 @@ experiments/N32_P64_ep2000_te10/
 | `train.py` | `run_training()`：full-batch 训练主循环 + 测试调度 + `TrainingHistory` |
 | `io_utils.py` | 写 `loss.csv` 与 `metadata.json` |
 | `plot.py` | 画 loss 曲线与诊断图 |
+| `convergence_reference.py` | 调参参考：实测各 `P/N` 下的收敛速度、`lr` 稳定上限、可达的 test 下限 |
 | `main.py` | 主程序：解析参数 → 建 teacher/数据/student → 训练 → 存文件 → 打印汇总 |
 | `sweep.py` | 批量扫 `N`/`P`/`epoch`：每个格点跑一次完整实验，另出汇总表与叠加对比图 |
 | `smoke_test.py` | 自检：数值一致性、CSV 结构、loss 下降性 |
@@ -128,7 +129,78 @@ experiments/N32_P64_ep2000_te10/
 
 ---
 
-## 7. 流程图
+## 7. 怎么调参
+
+**参数只有一个入口：命令行。** 定义在 `config.py`（`ExperimentConfig` + `parse_args`），`main.py` 与
+`sweep.py` 共用同一套；也可以改 dataclass 字段默认值，但那样会改动所有实验的可复现记录，不如用命令行。
+
+### 调 epoch 前先看 P/N
+
+训练损失对 `w` 是二次函数，full-batch GD 因此是一个线性迭代
+`w_{t+1} = (I - 2·lr·G) w_t + …`（`G = XᵀX/P`）：每个特征方向按 `(1 - 2·lr·λ)` 衰减，
+所以**需要多少 epoch 由最小特征值 `λ_min` 决定，即由条件数 κ 决定**，而 κ 由 `P/N` 决定。
+`G` 的谱服从 Marchenko–Pastur 律，`N/P ≤ 1` 时 `λ ∈ [(1-√(N/P))², (1+√(N/P))²]`。
+
+实测（`N=32`、`σ=0.01`、`lr=0.1`，误差降 100 倍所需 epoch）：
+
+| P/N | κ | `lr` 上限 `1/λ_max` | epoch 实测 | epoch 理论 | 可达 test 下限 |
+| --- | --- | --- | --- | --- | --- |
+| 0.5 | 奇异（λ_min = 0） | 0.19 | 18 | ∞ | 3.2e-1 |
+| **1.0** | **6963** | 0.27 | **>3000** | 43812 | 9.2e-3 |
+| 1.5 | 49 | 0.38 | 68 | 424 | 3.0e-4 |
+| 2.0 | 26 | 0.41 | 43 | 241 | 1.9e-4 |
+| 4.0 | 6.7 | 0.54 | 22 | 81 | 1.3e-4 |
+| 8.0 | 3.8 | 0.59 | 15 | 50 | 1.1e-4 |
+| 16.0 | 2.4 | 0.68 | 14 | 36 | 1.09e-4 |
+
+（`λ_min` 与 κ 随具体样本有波动；`epoch 理论` 是最慢模式 `(1-2·lr·λ_min)^t` 的保守上界，
+实测更快是因为初始误差主要落在特征值大的方向上。`可达 test 下限` = `‖w_ols-w̄‖² + σ²`。）
+
+三条结论：
+
+1. **`P/N ≥ 2` 用默认 `lr=0.1`，`epoch` 给 500 足够**；`P/N ≥ 4` 时 200 就够。
+2. **避开 `P/N = 1`**：数据矩阵接近奇异（κ≈7000），GD 在最小特征值方向上爬得极慢，
+   而且这一档 test loss 比噪声地板高两个数量级（样本噪声被拟合进权重）。
+3. **`lr` 必须小于 `1/λ_max`**，实测在 0.19~0.68 之间，所以默认 0.1 对所有配置都稳定；
+   想加速可到 0.3（`P/N ≥ 2` 时仍在上限内），超过上限会直接发散。
+
+重新测量（换 `N` 或 `σ` 后建议重跑）：
+
+```bash
+python convergence_reference.py
+```
+
+### 三套现成配方
+
+```bash
+# A. 标准泛化实验：曲线最干净，test 收敛到噪声地板
+python main.py -N 32 -P 128 --epoch 500 --test-every 5 --n-test 100000
+#    -> train 7.1e-5, test 1.27e-4 (sigma^2 = 1e-4)
+
+# B. 过拟合 / P<N 实验：训练集插值到机器精度，test 远高于地板，且不会 grok
+python main.py -N 64 -P 16 --epoch 2000 --test-every 20
+#    -> train 1.5e-35, test 0.80
+
+# C. 扫参数找规律
+python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
+```
+
+配方 A 里的 `--n-test 100000` 是关键：默认测试集只有 `P` 个样本，蒙特卡洛噪声约
+`2‖w-w̄‖/√P`，会让 test 曲线抖动明显；想要 test 曲线贴合解析值就用大测试集。
+
+### 症状速查
+
+| 症状 | 原因 | 处理 |
+| --- | --- | --- |
+| loss 变 NaN / 爆炸 | `lr > 1/λ_max` | 把 `--lr` 降到 0.1 以下 |
+| test 曲线抖得看不出趋势 | 测试集太小（= P） | 加 `--n-test 100000` |
+| train loss 停在地板不动 | 正常：噪声在列空间正交补上的投影 | 想更低就增大 `P`（地板 `σ²(P-N)/P`） |
+| `P = N` 收敛特别慢 | 数据矩阵接近奇异 | 换 `P/N ≥ 1.5` |
+| 想看纯泛化、无噪声 | — | `--noise-std 0` |
+
+---
+
+## 8. 流程图
 
 用浏览器打开 `docs/pipeline.html`（自包含单文件，无需联网）：
 
@@ -145,7 +217,7 @@ node ~/.dsh/skills/archify/bin/archify.mjs deliver workflow docs/pipeline.workfl
 
 ---
 
-## 8. 批量扫参数
+## 9. 批量扫参数
 
 ```bash
 python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
@@ -170,7 +242,7 @@ python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
 
 ---
 
-## 9. 自检
+## 10. 自检
 
 ```bash
 python smoke_test.py
@@ -183,7 +255,7 @@ python smoke_test.py
 
 ---
 
-## 10. 数值提示
+## 11. 数值提示
 
 - student 与数据用**互相独立**的随机流（student 用 `seed+10000`），改初始化不会打乱数据集。
 - 默认 `lr=0.1`，对 `E[xx^T]=I` 且 `P>=N` 的情形稳定；若 `P<N` 或输入协方差病态，full-batch GD 的收敛由 `X^TX/P` 的最大特征值决定，必要时调小 `--lr`。
