@@ -259,6 +259,15 @@
         "train loss 有下界 σ²(P−N)/P，降不到 0 是数据性质，不是没收敛",
         "单次 test loss 的真实波动约 2‖w−w̄‖/√P，想平滑就加大 --n-test"
       ]
+    },
+    {
+      "dot": "violet",
+      "title": "扩展到相图（phase_diagram.py）",
+      "items": [
+        "对 (N, P) 网格逐格跑同一套流程，颜色表示 final / best test loss",
+        "P < N 是过拟合区，test loss 高到 0.1~0.8；P ≥ N 落到噪声地板附近",
+        "每格按样本实测 λ_max 自动收紧 lr，避免 lr≥1/λ_max 时训练发散"
+      ]
     }
   ]
 }
