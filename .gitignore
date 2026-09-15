@@ -17,3 +17,6 @@ paper_runs/
 .idea/
 Thumbs.db
 desktop.ini
+
+# Transfer artifacts (git bundle prepared for pushing from another network)
+repo.bundle
