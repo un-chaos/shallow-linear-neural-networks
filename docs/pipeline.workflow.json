@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "teacher / student 线性网络实验流程",
+    "quality_profile": "showcase",
+    "viewBox": [
+      720,
+      900
+    ],
+    "views": [
+      {
+        "id": "prepare",
+        "label": "准备：定 teacher 与训练集",
+        "focus": [
+          "config",
+          "teacher",
+          "sampler"
+        ],
+        "note": "teacher 权重 w̄ 固定不动；训练集只由它生成一次，之后被反复使用。"
+      },
+      {
+        "id": "loop",
+        "label": "训练：全量梯度下降循环",
+        "focus": [
+          "sample-batch",
+          "grad-step",
+          "config"
+        ],
+        "note": "所有 P 个样本一起算梯度，每个 epoch 走一步，直到 epoch 用完。"
+      },
+      {
+        "id": "deliver",
+        "label": "产出：CSV、曲线与自检",
+        "focus": [
+          "csv",
+          "plot",
+          "selfcheck"
+        ],
+        "note": "每个 epoch 一条记录，train 与 test loss 画在同一张图里。"
+      }
+    ],
+    "legend": {
+      "mode": "hidden"
+    }
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "主流程 main.py"
+    },
+    {
+      "id": "teacher",
+      "label": "teacher 与数据 data.py"
+    },
+    {
+      "id": "result",
+      "label": "结果输出 io_utils.py + plot.py"
+    },
+    {
+      "id": "check",
+      "label": "自检 smoke_test.py",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "prepare",
+      "label": "准备",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "train",
+      "label": "训练与测试",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "deliver",
+      "label": "交付",
+      "fromCol": 4,
+      "toCol": 4,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "config",
+    "sample-batch",
+    "grad-step"
+  ],
+  "nodes": [
+    {
+      "id": "config",
+      "lane": "main",
+      "col": 0,
+      "width": 92,
+      "type": "frontend",
+      "label": "读参数",
+      "sublabel": "N、P、epoch"
+    },
+    {
+      "id": "sample-batch",
+      "lane": "main",
+      "col": 2,
+      "width": 92,
+      "type": "database",
+      "label": "取全量样本",
+      "sublabel": "full batch"
+    },
+    {
+      "id": "grad-step",
+      "lane": "main",
+      "col": 4,
+      "width": 92,
+      "type": "backend",
+      "label": "更新 w",
+      "sublabel": "记 train loss"
+    },
+    {
+      "id": "teacher",
+      "lane": "teacher",
+      "col": 2,
+      "width": 92,
+      "type": "database",
+      "label": "teacher 权重",
+      "sublabel": "w̄ ~ N(0, I/N)，固定"
+    },
+    {
+      "id": "sampler",
+      "lane": "teacher",
+      "col": 0,
+      "width": 92,
+      "type": "backend",
+      "label": "生成训练集",
+      "sublabel": "P 个样本，只做一次"
+    },
+    {
+      "id": "plot",
+      "lane": "result",
+      "col": 0,
+      "width": 92,
+      "type": "frontend",
+      "label": "loss 曲线",
+      "sublabel": "train 与 test 同图"
+    },
+    {
+      "id": "csv",
+      "lane": "result",
+      "col": 2,
+      "width": 92,
+      "type": "database",
+      "label": "loss.csv",
+      "sublabel": "epoch, train, test"
+    },
+    {
+      "id": "selfcheck",
+      "lane": "check",
+      "col": 0,
+      "width": 92,
+      "type": "cloud",
+      "label": "数值自检",
+      "sublabel": "9 项检查"
+    }
+  ],
+  "edges": [
+    {
+      "from": "config",
+      "to": "sample-batch",
+      "role": "main",
+      "variant": "emphasis",
+      "label": "定 N、P",
+      "labelDy": -22,
+      "route": "up-channel",
+      "channelY": 190
+    },
+    {
+      "from": "sample-batch",
+      "to": "grad-step",
+      "role": "main",
+      "variant": "emphasis",
+      "route": "up-channel",
+      "channelY": 214
+    },
+    {
+      "from": "grad-step",
+      "to": "csv",
+      "role": "main",
+      "variant": "emphasis",
+      "route": "outside-right",
+      "fromSide": "right",
+      "toSide": "right"
+    },
+    {
+      "from": "grad-step",
+      "to": "config",
+      "label": "epoch 未满就继续",
+      "role": "return",
+      "variant": "dashed",
+      "route": "up-channel",
+      "channelY": 60
+    },
+    {
+      "from": "sampler",
+      "to": "sample-batch",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "from": "teacher",
+      "to": "sampler",
+      "role": "branch",
+      "label": "w̄ 打标签",
+      "labelDy": 52,
+      "route": "up-channel",
+      "channelY": 232
+    },
+    {
+      "from": "csv",
+      "to": "plot",
+      "label": "画图",
+      "role": "main",
+      "labelDy": 40,
+      "route": "up-channel",
+      "channelY": 414
+    },
+    {
+      "from": "csv",
+      "to": "selfcheck",
+      "role": "branch",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "四个可调旋钮",
+      "items": [
+        "N：输入维度，也等于 student 的参数量",
+        "P：训练样本数，同时是测试集大小",
+        "epoch：全量梯度下降的步数",
+        "test_every：每多少轮用新数据测一次"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "train 与 test 的关键区别",
+      "items": [
+        "训练集只由 teacher 生成一次，然后被反复拟合",
+        "测试集每次测量都由 teacher 重新生成，永远是没见过的数据",
+        "所以 test loss 衡量真正的泛化误差，不是拟合程度"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "读曲线时要知道的两件事",
+      "items": [
+        "train loss 有下界 σ²(P−N)/P，降不到 0 是数据性质，不是没收敛",
+        "单次 test loss 的真实波动约 2‖w−w̄‖/√P，想平滑就加大 --n-test"
+      ]
+    }
+  ]
+}

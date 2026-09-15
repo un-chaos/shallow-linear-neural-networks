@@ -121,12 +121,31 @@ experiments/N32_P64_ep2000_te10/
 | `main.py` | 主程序：解析参数 → 建 teacher/数据/student → 训练 → 存文件 → 打印汇总 |
 | `sweep.py` | 批量扫 `N`/`P`/`epoch`：每个格点跑一次完整实验，另出汇总表与叠加对比图 |
 | `smoke_test.py` | 自检：数值一致性、CSV 结构、loss 下降性 |
+| `docs/pipeline.html` | **流程图**（可交互，浏览器打开）：实验步骤、数据流与两个关键数值性质 |
+| `docs/pipeline.workflow.json` | 流程图的源文件；改完用 archify 重新生成 HTML |
 
 参数校验在 `ExperimentConfig.__post_init__` 里集中完成，非法输入（如 `P<=0`、`lr<=0`）会在开始计算前就报错。
 
 ---
 
-## 7. 批量扫参数
+## 7. 流程图
+
+用浏览器打开 `docs/pipeline.html`（自包含单文件，无需联网）：
+
+- 从左到右是「准备 → 训练与测试 → 交付」三个阶段，每行 lane 对应一个源文件；
+- 主线走 `main.py`：读参数 → 取全量样本 → 更新 w 并记 loss → 写 `loss.csv`；
+- 虚线回环表示「epoch 未满就继续」，即训练循环；
+- 下方三张卡片给出四个可调旋钮、train / test 的关键区别，以及读曲线时要知道的两个数值性质。
+
+改完图之后重新生成：
+
+```bash
+node ~/.dsh/skills/archify/bin/archify.mjs deliver workflow docs/pipeline.workflow.json docs/pipeline.html --quality showcase --json
+```
+
+---
+
+## 8. 批量扫参数
 
 ```bash
 python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
@@ -151,7 +170,7 @@ python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
 
 ---
 
-## 8. 自检
+## 9. 自检
 
 ```bash
 python smoke_test.py
@@ -164,7 +183,7 @@ python smoke_test.py
 
 ---
 
-## 9. 数值提示
+## 10. 数值提示
 
 - student 与数据用**互相独立**的随机流（student 用 `seed+10000`），改初始化不会打乱数据集。
 - 默认 `lr=0.1`，对 `E[xx^T]=I` 且 `P>=N` 的情形稳定；若 `P<N` 或输入协方差病态，full-batch GD 的收敛由 `X^TX/P` 的最大特征值决定，必要时调小 `--lr`。

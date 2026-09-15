@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "visual-check",
+  "status": "fail",
+  "visualReview": "pending",
+  "artifact": {
+    "path": "D:\\VScodeprojects\\transformer\\grokking for linear NN\\docs\\pipeline.html",
+    "sha256": "f712847f6739bd6edb9a3f6ddf09e2be5f90400a71bd8b630468fd6649e101f1",
+    "bytes": 634989
+  },
+  "state": {
+    "detail": "read",
+    "motion": "still"
+  },
+  "chrome": {
+    "status": "available",
+    "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+  },
+  "containment": {
+    "status": "fail",
+    "viewports": []
+  },
+  "captures": {
+    "status": "fail",
+    "screenshots": [],
+    "contactSheet": null
+  },
+  "sidecars": {
+    "receipt": "pipeline.visual-check.json",
+    "contactSheet": "pipeline.visual-check.html"
+  },
+  "error": "Page.loadEventFired: event timed out after 15000ms"
+}
