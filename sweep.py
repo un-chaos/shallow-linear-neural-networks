@@ -122,10 +122,10 @@ def plot_sweep(rows: list[dict], sweep_dir: Path, sweep_name: str) -> Path:
     fig, ax = plt.subplots(figsize=(8.6, 5.4))
     for row in rows:
         epochs, test_loss = _read_curve(Path(row["run_dir"]) / "loss.csv")
-        ax.semilogy(epochs, test_loss, lw=1.4,
-                    label=f"N={row['N']}, P={row['P']}, ep={row['epoch']}")
+        ax.plot(epochs, test_loss, lw=1.4,
+                label=f"N={row['N']}, P={row['P']}, ep={row['epoch']}")
     ax.set_xlabel("epoch")
-    ax.set_ylabel("test MSE (log scale)")
+    ax.set_ylabel("test MSE")
     ax.set_title(f"Test loss sweep  |  {sweep_name}")
     ax.legend(loc="best", fontsize=9)
     fig.tight_layout()

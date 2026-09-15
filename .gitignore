@@ -6,8 +6,9 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 
-# Experiment outputs (regenerate with `python main.py`)
+# Experiment outputs (regenerate with `python main.py` / `python phase_diagram.py`)
 experiments/
+phase/
 paper_runs/
 .tmp_smoke_*/
 

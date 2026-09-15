@@ -88,6 +88,24 @@ class Student:
 
 
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+def stable_lr_bound(x: np.ndarray) -> float:
+    """Largest ``lr`` for which full-batch GD on this batch does not diverge.
+
+    One step is ``w <- (I - 2*lr*G) w + ...`` with ``G = X^T X / P``, so every
+    eigenmode is contracted by ``(1 - 2*lr*lambda)``.  Convergence needs
+    ``lr < 1 / lambda_max``; this returns that limit with a 10% safety margin.
+
+    The bound is a property of the *sample*, not just of ``N`` and ``P``: with
+    few samples in high dimension the largest eigenvalue of ``G`` exceeds the
+    Marchenko-Pastur edge ``(1 + sqrt(N/P))^2`` noticeably, so an ``lr`` that is
+    safe at N=32 can diverge at N=64 for the same ``P/N``.
+    """
+    gram = x.T @ x / x.shape[0]
+    lam_max = float(np.linalg.eigvalsh(gram)[-1])
+    return 0.9 / lam_max if lam_max > 0 else float("inf")
+
+
 def ridge_solution(x: np.ndarray, y: np.ndarray, weight_decay: float = 0.0) -> np.ndarray:
     """Closed-form minimiser of MSE (+ optional L2), used as a sanity check."""
     n = x.shape[1]

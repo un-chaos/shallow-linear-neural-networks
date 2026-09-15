@@ -31,14 +31,14 @@ def configure_style() -> None:
 
 
 def plot_loss_curves(hist: TrainingHistory, cfg: ExperimentConfig, path: Path) -> Path:
-    """Train loss (every epoch) and test loss (fresh data) on the same axes."""
+    """Train loss (every epoch) and test loss (fresh data) on one pair of axes."""
     configure_style()
     fig, ax = plt.subplots(figsize=(8.0, 5.2))
 
-    ax.semilogy(hist.train_epoch, hist.train_loss, color="#1f77b4", lw=1.2,
-                label="train loss (MSE, 训练集)")
-    ax.semilogy(hist.test_epoch, hist.test_loss, color="#d62728", lw=1.6,
-                marker="o", ms=3.4, label="test loss (MSE, 新数据)")
+    ax.plot(hist.train_epoch, hist.train_loss, color="#1f77b4", lw=1.2,
+            label="train loss (MSE, 训练集)")
+    ax.plot(hist.test_epoch, hist.test_loss, color="#d62728", lw=1.6,
+            marker="o", ms=3.4, label="test loss (MSE, 新数据)")
 
     floor = cfg.noise_std**2
     if floor > 0:
@@ -46,7 +46,7 @@ def plot_loss_curves(hist: TrainingHistory, cfg: ExperimentConfig, path: Path) -
                    label=f"noise floor σ²={floor:.3g}")
 
     ax.set_xlabel("epoch")
-    ax.set_ylabel("MSE (log scale)")
+    ax.set_ylabel("MSE")
     ax.set_title(_title(cfg), fontsize=10)
     ax.legend(loc="best")
     fig.tight_layout()
@@ -65,18 +65,17 @@ def plot_diagnostics(hist: TrainingHistory, cfg: ExperimentConfig, path: Path) -
     configure_style()
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.0, 4.2))
 
-    ax1.semilogy(hist.test_epoch, hist.test_loss, color="#d62728", lw=1.6,
-                 marker="o", ms=3.0, label="measured test MSE")
-    ax1.semilogy(hist.test_epoch, hist.test_analytic, color="#2ca02c", lw=1.2,
-                 ls="-.", label=r"analytic $\|w-\bar w\|^2+\sigma^2$")
+    ax1.plot(hist.test_epoch, hist.test_loss, color="#d62728", lw=1.6,
+             marker="o", ms=3.0, label="measured test MSE")
+    ax1.plot(hist.test_epoch, hist.test_analytic, color="#2ca02c", lw=1.2,
+             ls="-.", label=r"analytic $\|w-\bar w\|^2+\sigma^2$")
     ax1.set_xlabel("epoch")
-    ax1.set_ylabel("MSE (log scale)")
+    ax1.set_ylabel("MSE")
     ax1.set_title("test loss: measured vs analytic")
     ax1.legend(loc="best")
 
-    ax2.semilogy(hist.test_epoch, hist.weight_distance, color="#9467bd", lw=1.6,
-                 marker="o", ms=3.0)
-    ax2.set_ylim(bottom=hist.weight_distance[-1] * 0.5)
+    ax2.plot(hist.test_epoch, hist.weight_distance, color="#9467bd", lw=1.6,
+             marker="o", ms=3.0)
     ax2.set_xlabel("epoch")
     ax2.set_ylabel(r"$\|w - \bar w\|_2$")
     ax2.set_title("distance to teacher weights")

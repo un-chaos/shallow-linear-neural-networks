@@ -119,6 +119,7 @@ experiments/N32_P64_ep2000_te10/
 | `io_utils.py` | 写 `loss.csv` 与 `metadata.json` |
 | `plot.py` | 画 loss 曲线与诊断图 |
 | `convergence_reference.py` | 调参参考：实测各 `P/N` 下的收敛速度、`lr` 稳定上限、可达的 test 下限 |
+| `phase_diagram.py` | N-P 相图：颜色表示 loss，扫整个 `(N, P)` 网格 |
 | `main.py` | 主程序：解析参数 → 建 teacher/数据/student → 训练 → 存文件 → 打印汇总 |
 | `sweep.py` | 批量扫 `N`/`P`/`epoch`：每个格点跑一次完整实验，另出汇总表与叠加对比图 |
 | `smoke_test.py` | 自检：数值一致性、CSV 结构、loss 下降性 |
@@ -161,13 +162,17 @@ experiments/N32_P64_ep2000_te10/
 1. **`P/N ≥ 2` 用默认 `lr=0.1`，`epoch` 给 500 足够**；`P/N ≥ 4` 时 200 就够。
 2. **避开 `P/N = 1`**：数据矩阵接近奇异（κ≈7000），GD 在最小特征值方向上爬得极慢，
    而且这一档 test loss 比噪声地板高两个数量级（样本噪声被拟合进权重）。
-3. **`lr` 必须小于 `1/λ_max`**，实测在 0.19~0.68 之间，所以默认 0.1 对所有配置都稳定；
-   想加速可到 0.3（`P/N ≥ 2` 时仍在上限内），超过上限会直接发散。
+3. **`lr` 必须小于 `1/λ_max`。** 这个上限**同时依赖 `P/N` 和 `N`**：上表是 `N=32` 的测量，
+   `P/N ≥ 0.5` 时上限 ≥ 0.19，默认 0.1 安全；但 `N` 更大、`P/N` 更小时，有限样本的
+   `λ_max` 会明显超过 Marchenko–Pastur 的渐近值，上限随之掉到 0.1 以下——
+   例如 `N=64, P=8` 上限只有 0.065、`N=64, P=12` 只有 0.084，**默认 `lr=0.1` 会直接发散**
+   （loss 冲到 `1e290`）。`main.py` 每次运行都会打印这项实测判定，`phase_diagram.py` 会自动收紧。
 
 重新测量（换 `N` 或 `σ` 后建议重跑）：
 
 ```bash
-python convergence_reference.py
+python convergence_reference.py           # 各 P/N 的收敛速度与 lr 上限
+python main.py -N 64 -P 12 --epoch 100    # 会打印 stability limit 的判定
 ```
 
 ### 三套现成配方
@@ -200,7 +205,45 @@ python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
 
 ---
 
-## 8. 流程图
+## 8. N-P 相图
+
+```bash
+python phase_diagram.py                       # 默认网格 77 个格点 x 3 种子，约 1 分钟
+python phase_diagram.py --color linear        # 颜色改用线性刻度
+python phase_diagram.py --n-values 8 16 32 --p-values 8 16 32 64
+```
+
+对 `(N, P)` 网格逐格跑完整流程（多种子平均），输出到 `phase/<name>/`：
+
+| 文件 | 内容 |
+| --- | --- |
+| `phase_final_test_loss.png` | **final test loss**（最后一个 epoch），颜色 = MSE |
+| `phase_best_test_loss.png` | **best test loss**（所有测试点的最小值），颜色 = MSE |
+| `phase_final_test_analytic.png` | 解析值 `‖w-w̄‖²+σ²`，用来对照 |
+| `phase_measured_vs_analytic.png` | 实测 − 解析，验证解析列无系统偏差 |
+| `phase_interpolation.png` | 训练集能否被完全插值（`P ≥ N` 时可以） |
+| `phase_grid.csv` | 全部原始数值，含每个量的 `_std` 和实际使用的 `lr_used` |
+
+**坐标轴一律线性**（横轴 `N`、纵轴 `P`），虚线标出 `P = N`。只有**颜色**用对数刻度：
+loss 跨约四个数量级（`1e-4` 到 `7e-1`），线性配色会把整个低 loss 区域压成同一色。
+需要纯线性配色就加 `--color linear`。
+
+三个读数要点：
+
+1. **`P < N`（对角线以下）是过拟合区**：test loss 高到 `0.1~0.8`，且随 `N` 增大而更差
+   （更宽的模型插值得更"狂野"）；train loss 则掉到机器精度（见 `phase_interpolation.png` 的红色区）。
+2. **`P ≥ N` 后 test loss 迅速落到噪声地板附近**，且只依赖 `P/N`：实测
+   `R(∞)/σ² = 1 + N/P`（`P/N=8` 预测 1.125 vs 实测 1.104，`P/N=2` 预测 1.5 vs 实测 1.45）。
+   这就是一维线性回归的**尺度不变性**：只改 `N` 或 `P` 会改变风险，等比例同时改则不变。
+3. **`P = N` 是一条窄的坏带**（κ≈7000，训练极慢），图上正好贴着虚线。
+
+> `best` 与 `final` 两张图在 `epoch=1500` 下几乎相同：实测 `best − final` 的中位数是 `-2.2e-6`
+> 且**没有任何正值**，说明蒙特卡洛噪声级别之下两者已无差别，整张网格都收敛了。
+> 想看两者差异就把 `--epoch` 调小。
+
+---
+
+## 9. 流程图
 
 用浏览器打开 `docs/pipeline.html`（自包含单文件，无需联网）：
 
@@ -217,7 +260,7 @@ node ~/.dsh/skills/archify/bin/archify.mjs deliver workflow docs/pipeline.workfl
 
 ---
 
-## 9. 批量扫参数
+## 10. 批量扫参数
 
 ```bash
 python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
@@ -242,7 +285,7 @@ python sweep.py -N 8 16 --P 8 16 32 --epoch 1000 --test-every 100
 
 ---
 
-## 10. 自检
+## 11. 自检
 
 ```bash
 python smoke_test.py
@@ -255,7 +298,7 @@ python smoke_test.py
 
 ---
 
-## 11. 数值提示
+## 12. 数值提示
 
 - student 与数据用**互相独立**的随机流（student 用 `seed+10000`），改初始化不会打乱数据集。
 - 默认 `lr=0.1`，对 `E[xx^T]=I` 且 `P>=N` 的情形稳定；若 `P<N` 或输入协方差病态，full-batch GD 的收敛由 `X^TX/P` 的最大特征值决定，必要时调小 `--lr`。

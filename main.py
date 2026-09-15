@@ -27,7 +27,7 @@ import numpy as np
 from config import ExperimentConfig, parse_args
 from data import Teacher
 from io_utils import save_history_csv, save_metadata
-from model import Student, ridge_solution
+from model import Student, ridge_solution, stable_lr_bound
 from plot import plot_diagnostics, plot_loss_curves
 from train import run_training
 
@@ -62,6 +62,19 @@ def main(argv: list[str] | None = None) -> int:
     # 2. training set, drawn once and then reused for every gradient step
     train_set = teacher.sample(cfg.P)
     print(f"\n[data] train set: x {train_set.x.shape}, y {train_set.y.shape}")
+
+    # Stability check before burning any epochs: one GD step contracts each
+    # eigenmode of X^T X / P by (1 - 2*lr*lambda), so lr must stay below
+    # 1/lambda_max or the loss diverges.
+    gram = train_set.x.T @ train_set.x / cfg.P
+    lr_limit = 1.0 / float(np.linalg.eigvalsh(gram)[-1])
+    if cfg.lr < 0.9 * lr_limit:
+        print(f"[check] lr={cfg.lr:g} < stability limit {lr_limit:.3f} -> ok")
+    else:
+        print(f"[check] lr={cfg.lr:g} is at/over the stability limit {lr_limit:.3f}"
+              f" -> the loss may DIVERGE")
+        print(f"        lower --lr below {stable_lr_bound(train_set.x):.3f} "
+              f"(P/N={cfg.P / cfg.N:.2f}, N={cfg.N})")
 
     # 3. student + full-batch gradient descent
     student = Student(cfg, rng=_student_rng(cfg))
