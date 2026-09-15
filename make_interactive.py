@@ -55,6 +55,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="phase grid CSV; default: the newest one under phase/")
     p.add_argument("--out", type=str, default=None,
                    help="output HTML; default: beside the CSV as interactive.html")
+    p.add_argument("--publish", type=str, nargs="?", const="docs/interactive.html",
+                   default=None,
+                   help="also copy the result into the repo (default docs/interactive.html) "
+                        "so it is version-controlled; phase/ itself is gitignored")
     p.add_argument("--open", action="store_true", help="open it in the browser")
     return p.parse_args(argv)
 
@@ -474,13 +478,21 @@ def main(argv: list[str] | None = None) -> int:
 
     grid = load_grid(csv_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(build_html(grid), encoding="utf-8")
+    html = build_html(grid)
+    out_path.write_text(html, encoding="utf-8")
 
     cells = len(grid["n_values"]) * len(grid["p_values"])
     print(f"[interactive] {csv_path}")
     print(f"              {cells} cells, {len(grid['n_values'])} N x "
           f"{len(grid['p_values'])} P, {len(QUANTITIES)} quantities")
     print(f"[output]      {out_path}  ({out_path.stat().st_size / 1024:.0f} KB)")
+
+    if args.publish:
+        pub_path = Path(args.publish)
+        pub_path.parent.mkdir(parents=True, exist_ok=True)
+        pub_path.write_text(html, encoding="utf-8")
+        print(f"[publish]     {pub_path}  (tracked by git; phase/ is ignored)")
+
     if args.open:
         webbrowser.open(out_path.resolve().as_uri())
     return 0

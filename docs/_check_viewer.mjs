@@ -64,8 +64,11 @@ const ok = (name, cond, detail = '') => {
 
 // 1. the data block survived into the HTML intact
 const nValues = GRID.n_values, pValues = GRID.p_values;
-ok('grid data parsed', nValues.length === 7 && pValues.length === 11,
-   `${nValues.length} N x ${pValues.length} P`);
+ok('grid data parsed and internally consistent',
+   nValues.length > 1 && pValues.length > 1
+   && Object.values(GRID.quantities).every(q => q.values.length === pValues.length
+        && q.values.every(row => row.length === nValues.length)),
+   `${nValues.length} N x ${pValues.length} P, ${nValues.length * pValues.length} cells`);
 
 // 2. every cell of every quantity is a finite number (no nulls / NaN)
 let holes = 0;

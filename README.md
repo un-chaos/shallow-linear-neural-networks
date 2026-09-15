@@ -127,6 +127,7 @@ experiments/N32_P64_ep2000_te10/
 | `sweep.py` | 批量扫 `N`/`P`/`epoch`：每个格点跑一次完整实验，另出汇总表与叠加对比图 |
 | `smoke_test.py` | 自检：数值一致性、CSV 结构、loss 下降性 |
 | `docs/pipeline.html` | **流程图**（可交互，浏览器打开）：实验步骤、数据流与两个关键数值性质 |
+| `docs/interactive.html` | **相图交互查看器**（零依赖单文件）：悬停读数值、点击固定、滚轮缩放、切色标 |
 | `docs/pipeline.workflow.json` | 流程图的源文件；改完用 archify 重新生成 HTML |
 
 参数校验在 `ExperimentConfig.__post_init__` 里集中完成，非法输入（如 `P<=0`、`lr<=0`）会在开始计算前就报错。
@@ -247,11 +248,12 @@ loss 跨约四个数量级（`1e-4` 到 `7e-1`），线性配色会把整个低 
 ### 交互版本（推荐用这个看图）
 
 ```bash
-python make_interactive.py --open      # 自动打开刚生成的 interactive.html
+python make_interactive.py --csv phase/dense_ep800/phase_grid.csv --publish --open
 ```
 
-生成 `phase/<name>/interactive.html`，**单文件、零依赖**（没有 plotly、没有 CDN，
-双击就能离线打开，实测 28 KB + 数据）。功能：
+生成 `phase/<name>/interactive.html`（同时用 `--publish` 复制一份到仓库里的
+**`docs/interactive.html`**，可以直接在 GitHub 上打开看）。
+**单文件、零依赖**——没有 plotly、没有 CDN，双击就能离线打开。功能：
 
 | 操作 | 效果 |
 | --- | --- |
